@@ -28,6 +28,7 @@ $orders = $conn->query("
 </head>
 
 <body>
+    <a href="staffs_dashboard.php">Return</a>
     <h2>Process Orders</h2>
     <table border="1" cellpadding="5">
         <tr>

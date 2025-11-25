@@ -9,7 +9,7 @@ if (!isset($_SESSION["admin_id"])) {
 <html>
 
 <head>
-    <title>Staff Dashboard</title>
+    <title>QuickBite</title>
 </head>
 
 <body>
@@ -19,6 +19,7 @@ if (!isset($_SESSION["admin_id"])) {
         <li><a href="orders.php">Process Orders</a></li>
         <li><a href="inventory.php">Inventory Management</a></li>
         <li><a href="reports.php">Reports & Analytics</a></li>
+        <li><a href="registration.php">Register Users</a></li>
         <li><a href="staffs_logout.php">Logout</a></li>
     </ul>
 </body>

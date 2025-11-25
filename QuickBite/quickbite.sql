@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 12, 2025 at 01:36 PM
+-- Generation Time: Nov 25, 2025 at 12:08 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -28,7 +28,8 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `food_menu` (
-  `id` int(11) NOT NULL,
+  `id` bigint(11) NOT NULL,
+  `code` varchar(3) NOT NULL,
   `name` varchar(100) NOT NULL,
   `description` text DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
@@ -44,7 +45,7 @@ CREATE TABLE `food_menu` (
 --
 
 CREATE TABLE `inventory_logs` (
-  `id` int(11) NOT NULL,
+  `id` bigint(11) NOT NULL,
   `food_id` int(11) NOT NULL,
   `action` enum('add_stock','reduce_stock') NOT NULL,
   `quantity` int(11) NOT NULL,
@@ -59,12 +60,24 @@ CREATE TABLE `inventory_logs` (
 --
 
 CREATE TABLE `orders` (
-  `id` int(11) NOT NULL,
+  `id` bigint(11) NOT NULL,
   `customer_name` varchar(100) NOT NULL,
-  `food_id` int(11) NOT NULL,
+  `food_id` bigint(11) NOT NULL,
   `quantity` int(11) NOT NULL,
   `total_amount` decimal(10,2) NOT NULL,
   `status` enum('pending','processing','completed','cancelled') DEFAULT 'pending',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `registered_users`
+--
+
+CREATE TABLE `registered_users` (
+  `student_number` bigint(20) NOT NULL,
+  `name` varchar(100) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -75,9 +88,22 @@ CREATE TABLE `orders` (
 --
 
 CREATE TABLE `staffs` (
-  `id` int(11) NOT NULL,
+  `id` bigint(11) NOT NULL,
   `name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_login_info`
+--
+
+CREATE TABLE `user_login_info` (
+  `id` bigint(20) NOT NULL,
+  `student_number` bigint(20) NOT NULL,
   `password` varchar(255) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -107,11 +133,23 @@ ALTER TABLE `orders`
   ADD KEY `food_id` (`food_id`);
 
 --
+-- Indexes for table `registered_users`
+--
+ALTER TABLE `registered_users`
+  ADD PRIMARY KEY (`student_number`);
+
+--
 -- Indexes for table `staffs`
 --
 ALTER TABLE `staffs`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`);
+
+--
+-- Indexes for table `user_login_info`
+--
+ALTER TABLE `user_login_info`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -121,41 +159,31 @@ ALTER TABLE `staffs`
 -- AUTO_INCREMENT for table `food_menu`
 --
 ALTER TABLE `food_menu`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `inventory_logs`
 --
 ALTER TABLE `inventory_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `staffs`
 --
 ALTER TABLE `staffs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
--- Constraints for dumped tables
+-- AUTO_INCREMENT for table `user_login_info`
 --
-
---
--- Constraints for table `inventory_logs`
---
-ALTER TABLE `inventory_logs`
-  ADD CONSTRAINT `inventory_logs_ibfk_1` FOREIGN KEY (`food_id`) REFERENCES `food_menu` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `orders`
---
-ALTER TABLE `orders`
-  ADD CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`food_id`) REFERENCES `food_menu` (`id`) ON DELETE CASCADE;
+ALTER TABLE `user_login_info`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

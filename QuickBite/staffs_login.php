@@ -18,7 +18,7 @@ if (isset($_SESSION["admin_id"])) {
         <input type="email" name="email" placeholder="Email" required><br><br>
         <input type="password" name="password" placeholder="Password" required><br><br>
         <input type="hidden" name="staff_login" value="true">
-        <button type="submit">Login</button><br><br><br><br>
+        <button type="submit">Login</button><br><br>  
     </form>
     <button id="goToStaffReg">Register</button><br><br>
     <p>

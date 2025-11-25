@@ -5,32 +5,9 @@ if (!isset($_SESSION["admin_id"])) {
     exit();
 }
 
-$message = "";
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $food_id = $_POST["food_id"];
-    $action = $_POST["action"];
-    $qty = $_POST["quantity"];
-    $remarks = $_POST["remarks"];
 
-    if ($action === "add_stock")
-        $conn->query("UPDATE food_menu SET stock = stock + $qty WHERE id = $food_id");
-    else
-        $conn->query("UPDATE food_menu SET stock = GREATEST(stock - $qty, 0) WHERE id = $food_id");
-
-    $stmt = $conn->prepare("INSERT INTO inventory_logs (food_id, action, quantity, remarks) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("isis", $food_id, $action, $qty, $remarks);
-    $stmt->execute();
-
-    $message = "Inventory updated successfully.";
-}
-
-$foods = $conn->query("SELECT * FROM food_menu");
-$logs = $conn->query("
-  SELECT l.*, f.name AS food_name
-  FROM inventory_logs l
-  JOIN food_menu f ON l.food_id = f.id
-  ORDER BY l.created_at DESC
-");
+// Manage stock
+// Manage availability
 ?>
 <!DOCTYPE html>
 <html>
@@ -53,6 +30,7 @@ $logs = $conn->query("
         </select>
         <input type="number" name="quantity" placeholder="Quantity" required>
         <input type="text" name="remarks" placeholder="Remarks">
+        <input type="hidden" name="food_inventory" value="true">
         <button type="submit">Submit</button>
     </form>
     <p><?= $message ?></p>
