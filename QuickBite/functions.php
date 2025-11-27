@@ -13,9 +13,15 @@ function connect() {
 $conn = connect();
 session_start();
 
-function registrationResult($message) { // Helper function
+function staffRegistrationResult($message) { // Helper function
     setcookie('staff_reg_res', $message);
     header('Location: staffs_register.php');
+    exit();
+}
+
+function staffLoginErr($message) {
+    setcookie('staff_login_err', $message);
+    header('Location: staffs_login.php');
     exit();
 }
 
@@ -26,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_registration'])
     $confirm_password = trim($_POST['confirm_password']);
 
     if ($password !== $confirm_password) {
-        registrationResult('Error: Password does not match.');
+        staffRegistrationResult('Error: Password does not match.');
     }
 
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -36,13 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_registration'])
 
     try {
         if ($register_staff->execute()) {
-            registrationResult('Staff registration successful.');
+            staffRegistrationResult('Staff registration successful.');
         }
     } catch(mysqli_sql_exception $e) {
         if ($e->getCode() === 1062) {
-            registrationResult('Error: Email already exists.');
+            staffRegistrationResult('Error: Email already exists.');
         } else {
-            registrationResult('Database error: ' . $e->getMessage());
+            staffRegistrationResult('Database error: ' . $e->getMessage());
         }
     }
 }
@@ -51,46 +57,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_login'])) { // 
     $email = trim($_POST["email"]);
     $password = trim($_POST['password']);
 
-    $get_email = $conn->prepare("SELECT * FROM staffs WHERE email = ?");
+    $get_email = $conn->prepare("SELECT * FROM staffs WHERE email=?");
     $get_email->bind_param("s", $email);
     $get_email->execute();
     
     $result = $get_email->get_result();
     $admin = $result->fetch_assoc();
-    
-    if ($admin && password_verify($password, $admin["password"])) {
-        $_SESSION['admin_id'] = $admin['id'];
-        $_SESSION['admin_name'] = $admin['name'];
-        $_SESSION['admin_email'] = $email;
-        header('Location: staffs_dashboard.php');
-        exit();
-    } else {
-        setcookie('staff_login_res', 'Error: Invalide credentials.');
-        header('Location: staffs_login.php');
-        exit();
+
+    if (!$admin) {
+        staffLoginErr('Account does not exist.');
     }
+
+    if (!password_verify($password, $admin['password'])) {
+        staffLoginErr('Invalid password.');
+    }
+    
+    $_SESSION['admin_id'] = $admin['id'];
+    $_SESSION['admin_name'] = $admin['name'];
+    $_SESSION['admin_email'] = $email;
+    header('Location: staffs_dashboard.php');
+    exit();
 }
 
 function getMenu() { // Helper function
     $conn = connect();
 
-    $sql =
-        "SELECT *
-        FROM food_menu";
-    if ($rs = $conn->query($sql)) {
+    $sql = "SELECT * FROM food_menu";
+    $rs = $conn->query($sql);
+
+    if ($rs->num_rows === 0) {
+        $output = json_encode(null);
+    } else { 
         while ($menu_item = $rs->fetch_assoc()) {
             $menu[] = $menu_item;
         }
-
         $output = json_encode($menu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-
-        if ($output !== null) {
-            file_put_contents('menu.json', $output);
-        }
     }
+    file_put_contents('menu.json', $output);
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_menu'])) { // Post menu item
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_menu'])) { // Post menu item (check)
     $code = $_POST['item_code'];
     $name = $_POST["name"];
     $desc = $_POST["description"];
@@ -132,7 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_menu'])) { // Pos
     }
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['food_inventory'])) {
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['food_inventory'])) { // (check)
     $food_id = $_POST["food_id"];
     $action = $_POST["action"];
     $qty = $_POST["quantity"];
@@ -160,15 +166,28 @@ function staffUserRegistrationResult($message) { // Helper function
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_user_registration'])) { // Register individual user
-    $student_number = $_POST['student_number'];
-    $name = $_POST['name'];
+function getRegisteredUsers() { // Get registered users
+    $conn = connect();
 
-    $sql =
-        "INSERT INTO registered_users
-        (student_number, name)
-        VALUES
-        (?,?)";
+    $sql = "SELECT student_number, name FROM registered_users";
+    $rs = $conn->query($sql);
+
+    if ($rs->num_rows === 0) {
+        $output = json_encode(null);
+    } else {
+        while ($user = $rs->fetch_assoc()) {
+            $users[] = $user;
+        }
+        $output = json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+    file_put_contents('registered_users.json', $output);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_user_registration'])) { // Register individual user
+    $student_number = trim($_POST['student_number']);
+    $name = trim($_POST['name']);
+
+    $sql = "INSERT INTO registered_users (student_number, name) VALUES (?,?)";
     $register_user = $conn->prepare($sql);
     $register_user->bind_param('ss',$student_number,$name);
 
@@ -177,7 +196,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_user_registrati
             staffUserRegistrationResult('User registered successfully.');
         }
     } catch(mysqli_sql_exception $e) {
-        staffUserRegistrationResult($e->getMessage());
+        if ($e->getCode() === 1062) {
+            staffUserRegistrationResult('Error: User already exists.');
+        } else {
+            staffUserRegistrationResult('Database error: ' . $e->getMessage());
+        }
     }
 }
 
@@ -232,20 +255,66 @@ function studentLoginErr($message) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_registration'])) {
-    // Code
+function studentRegisRes($message) {
+    setcookie('stud_reg_res', $message);
+    header('Location: students_register.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_registration'])) { // Student/user registration
+    $student_number = trim($_POST['student_number']);
+    $password = trim($_POST['password']);
+    $confirm_password = trim($_POST['confirm_password']);
+
+    $sql = "SELECT student_number FROM registered_users WHERE student_number=?";
+    $get_stud_num = $conn->prepare($sql);
+    $get_stud_num->bind_param('s',$student_number);
+    $get_stud_num->execute();
+
+    $rs = $get_stud_num->get_result();
+
+    if ($rs->num_rows === 0) {
+        studentRegisRes('Invalid student number.');
+    }
+
+    if ($password !== $confirm_password) {
+        studentRegisRes('Password does not match.');
+    }
+
+    try {
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+        $sql = "INSERT INTO user_login_info (student_number, password) VALUES (?,?)";
+        $register_account = $conn->prepare($sql);
+        $register_account->bind_param('ss',$student_number,$hashed_password);
+
+        if ($register_account->execute()) {
+            studentRegisRes('Account created successfully.');
+        }
+    } catch(mysqli_sql_exception $e) {
+        if ($e->getCode() === 1062) {
+            studentRegisRes('Error: Account already exists.');
+        } else {
+            studentRegisRes('Database error: ' . $e->getMessage());
+        }
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_login'])) {
-    $student_number = $_POST['student_number'];
-    $password = $_POST['password'];
+    $student_number = trim($_POST['student_number']);
+    $password = trim($_POST['password']);
 
     try {
         $sql =
-            "SELECT *
+            "SELECT user_login_info.student_number, registered_users.name, user_login_info.password
             FROM user_login_info
-            WHERE student_number='$student_number'";
-        $rs = $conn->query($sql);
+            LEFT JOIN registered_users
+            ON user_login_info.student_number=registered_users.student_number
+            WHERE user_login_info.student_number=?";
+        $get_info = $conn->prepare($sql);
+        $get_info->bind_param('s',$student_number);
+        $get_info->execute();
+        $rs = $get_info->get_result();
 
         if ($rs->num_rows === 0) {
             studentLoginErr('Account does not exist.');
@@ -256,10 +325,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_login'])) {
         if (!password_verify($password, $info['password'])) {
             studentLoginErr('Wrong password.');
         }
-        
-        // End result
+
+        $_SESSION['student_number'] = $student_number;
+        $_SESSION['student_name'] = $info['name'];
+
+        header('Location: students_dashboard.php');
     } catch(mysqli_sql_exception $e) {
-        studentLoginErr('Login Error.');
+        studentLoginErr('Database error: ' . $e->getMessage());
     }
 }
 

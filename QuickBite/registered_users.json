@@ -1,0 +1,30 @@
+[
+    {
+        "student_number": "202112345",
+        "name": "Juan Malakas"
+    },
+    {
+        "student_number": "202234567",
+        "name": "Don Pedro Singkit"
+    },
+    {
+        "student_number": "202310001",
+        "name": "Juan Luna"
+    },
+    {
+        "student_number": "202310002",
+        "name": "Luna Makata"
+    },
+    {
+        "student_number": "202310488",
+        "name": "John Ichiro Mananquil"
+    },
+    {
+        "student_number": "202310499",
+        "name": "Juan Tamad"
+    },
+    {
+        "student_number": "202456789",
+        "name": "Dummy Luna"
+    }
+]

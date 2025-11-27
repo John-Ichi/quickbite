@@ -1,3 +1,12 @@
+<?php
+include 'functions.php';
+if (!isset($_SESSION["admin_id"])) {
+    header("Location: staffs_login.php");
+    exit();
+}
+
+getRegisteredUsers();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,6 +37,17 @@
         <input type="hidden" name="staff_user_registration">
         <button type="submit">Register</button>
     </form>
+
+    <br>
+
+    <div id="registeredUsers">
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>Student Number</th>
+                <th>Name</th>
+            </tr>
+        </table>
+    </div>
 </body>
 
 <script>
@@ -35,5 +55,7 @@
         document.cookie = "staff_user_reg_res=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
     });
 </script>
+
+<script src="js/registration.js" defer></script>
 
 </html>
