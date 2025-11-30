@@ -1,0 +1,109 @@
+/* staffs_register.css — staff registration page */
+:root {
+    /* shared tokens copied into file */
+    --font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    --bg: #fafafa;
+    --muted: #1b2b3b;
+    --accent: #48c78e;
+    --surface-radius: 12px;
+    --surface-shadow: 0 8px 30px rgba(19, 39, 56, 0.08);
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: var(--font);
+    background: linear-gradient(180deg, #eef2f7, #e6f7f2);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh
+}
+
+.wrap {
+    width: min(600px, 94vw);
+    background: #ffffff;
+    border-radius: var(--surface-radius);
+    padding: 26px;
+    box-shadow: var(--surface-shadow)
+}
+
+h2 {
+    margin: 0 0 12px
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px
+}
+
+input {
+    padding: 12px;
+    border-radius: calc(var(--surface-radius) - 4px);
+    border: 1px solid #e6eef5
+}
+
+button {
+    border: none;
+    background: linear-gradient(90deg, var(--accent), #3fb87a);
+    padding: 10px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 700;
+    cursor: pointer
+}
+
+a {
+    color: #2b6777;
+    display: inline-block;
+    margin-bottom: 14px;
+    text-decoration: none
+}
+
+/* header & footer per-file */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px
+}
+
+.page-footer {
+    margin-top: 18px;
+    font-size: 13px;
+    opacity: 0.8;
+    color: var(--muted);
+    text-align: center
+}
+
+/* brand/logo styles used by header */
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand .logo {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1b2b3b;
+    font-weight: 800;
+}
+
+p.message {
+    background: rgba(0, 0, 0, 0.03);
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-weight: 600
+}
