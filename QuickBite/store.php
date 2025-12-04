@@ -3,7 +3,12 @@ include 'functions.php';
 
 if (!isset($_SESSION['student_number'])) header('Location: index.php');
 
-getStoreList();
+$student_number = $_SESSION['student_number'];
+$store_id = $_GET['store_id'];
+
+getStoreInfo($store_id);
+getMenu($store_id);
+getCart($student_number);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -45,67 +50,46 @@ getStoreList();
             color: black;
             text-decoration: none;
             cursor: pointer;
-        }        
+        }
 
         img {
             height: 10%;
             width: 10%;
         }
-
-        .store:hover {
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
-    <h2>Hello World!</h2>
-    <ul>
-        <li><a href="students_logout.php">Logout</a></li>
-    </ul>
-    <button>Cart</button>
-    <h3>Canteen Stores</h3>
-    <div id="storesDiv"></div>
-    <!--
-    <table border="1" cellpadding="5" id="menuTable">
-        <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th></th>
-            <th>Place Order</th>
-        </tr>
-    </table>
-
-    <br>
-
-    <button id="viewCart">View Cart</button><br><br>
-    <button id="checkOut">Proceed to checkout</button>
-
-    <div id="orderModal" class="modal">
+    <a href="students_dashboard.php">Return</a>
+    <button id="viewCart">Cart</button>
+    <h1>Hello world!</h1>
+    <div id="storeInfoDiv"></div>
+    <table border="1" cellpadding="5" id="storeMenuTable"></table>
+    
+    <div id="addToCartModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h4>Add To Cart</h4>
-            <form>
-                <input type="text" id="itemCode" readonly><br><br>
-                <input type="text" id="itemName" readonly><br><br>
-                <input type="number" min="1" step="1" id="itemCount"><br><br>
-            </form>
-            <button id="addItem">Proceed</button>
+        <span class="close">&times;</span>
+        <h3>Add To Cart</h3>
+        <form action="functions.php" method="POST" autocomplete="off">
+            <input type="hidden" name="customer_id" value="<?php echo $student_number; ?>">
+            <input type="hidden" name="food_id" id="foodIdInp">
+            <input type="text" name="" id="foodNameInp" readonly>
+            <input type="number" name="food_quantity" min="1" step="1" id="foodQuanInp">
+            <input type="number" name="" step="1" id="foodPriceInp" readonly>
+            <input type="hidden" name="add_to_cart">
+            <button type="submit">Add To Cart</button>
+        </form>
         </div>
     </div>
 
     <div id="cartModal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h4>Cart</h4>
-            <div id="orderSummary"></div>
+        <span class="close">&times;</span>
+        <h3>Cart</h3>
+            <div id="cartDiv"></div>
         </div>
     </div>
-    -->
 </body>
 
-<script src="js/students_dashboard.js"></script>
+<script src="js/store.js"></script>
 
 </html>

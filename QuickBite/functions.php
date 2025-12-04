@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set("Asia/Manila");
+
 function connect() {
     $host = 'localhost';
     $user = 'root';
@@ -13,6 +15,7 @@ function connect() {
 $conn = connect();
 session_start();
 
+/**
 function staffRegistrationResult($message) { // Helper function
     setcookie('staff_reg_res', $message);
     header('Location: staffs_register.php');
@@ -24,7 +27,183 @@ function staffLoginErr($message) {
     header('Location: staffs_login.php');
     exit();
 }
+*/
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['store_registration'])) { // Store registration
+    $store_name = trim($_POST['store_name']);
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+    $confirm_password = trim($_POST['confirm_password']);
+
+    if ($password !== $confirm_password) {
+        setcookie('store_reg_pass_err', 'Error: Passwords do not match.');
+        header('Location: store_register.php');
+        exit();
+    }
+
+    $hashed_password = password_hash($password,PASSWORD_DEFAULT);
+
+    $sql =
+        "INSERT INTO stores
+        (email, store_name, password)
+        VALUES
+        (?,?,?)";
+    $register_store = $conn->prepare($sql);
+    $register_store->bind_param('sss',$email,$store_name,$hashed_password);
+
+    try {
+        if ($register_store->execute()) {
+            setcookie('store_reg_success','Store registered successfully.');
+            header('Location: store_login.php');
+            exit();
+        }
+    } catch (mysqli_sql_exception $e) {
+        if ($e->getCode() === 1062) {
+            $error_msg = $e->getMessage();
+
+            if (strpos($error_msg,"for key 'email'")) {
+                setcookie('store_reg_email_err',$email);
+            }
+
+
+            if (strpos($error_msg,"for key 'email_2'")) {
+                setcookie('store_reg_email_err',$email);
+            }
+
+            if (strpos($error_msg,"for key 'store_name'")) {
+                setcookie('store_reg_name_err',$store_name);
+            }
+
+            header('Location: store_register.php');
+            exit();
+        } else {
+            setcookie('store_reg_err', 'Database error: ' . $e->getMessage());
+            header('Location: store_register.php');
+            exit();
+        }
+    }
+}
+
+function storeLoginErr($message) {
+    setcookie('store_login_err', $message);
+    header('Location: store_login.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['store_login'])) { // Store login
+    $email = trim($_POST['email']);
+    $password = trim($_POST['password']);
+
+    $sql =
+        "SELECT id, email, store_name, password
+        FROM stores
+        WHERE email=?";
+    $get_store = $conn->prepare($sql);
+    $get_store->bind_param('s',$email);
+
+    try {
+        $get_store->execute();
+        $rs = $get_store->get_result();
+
+        if ($rs->num_rows === 0) storeLoginErr('Error: Account does not exist.');
+        
+        $info = $rs->fetch_assoc();
+
+        if (!password_verify($password,$info['password'])) storeLoginErr('Error: Wrong password.');
+
+        $_SESSION['store_id'] = $info['id'];
+        $_SESSION['store_email'] = $info['email'];
+        $_SESSION['store_name'] = $info['store_name'];
+
+        header('Location: store_index.php');
+        exit();
+    } catch (mysqli_sql_exception $e) {
+        storeLoginErr('Database error: ' . $e->getMessage());
+    }
+}
+function getStoreInfo($store_id) {
+    $conn = connect();
+
+    $sql =
+        "SELECT *
+        FROM store_info
+        WHERE store_id=?";
+    $get_store_info = $conn->prepare($sql);
+    $get_store_info->bind_param('s',$store_id);
+    $get_store_info->execute();
+
+    $rs = $get_store_info->get_result();
+
+    $page = basename($_SERVER['PHP_SELF']);
+
+    if ($rs->num_rows === 0) {
+        $output = json_encode(null);
+
+        if ($page !== 'store_information.php') {
+            header('Location: store_information.php');
+            exit();
+        }
+    } else {
+        if ($page === 'store_information.php') {
+            header('Location: store_index.php');
+            exit();
+        }
+
+        while ($data = $rs->fetch_assoc()) {
+            $info[] = $data;
+        }
+        $output = json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+    file_put_contents('store_info.json',$output);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['store_info_inp'])) { // Store information
+    $store_id = trim($_POST['store_id']);
+    $store_name = trim($_POST['store_name']);
+    $store_desc = trim($_POST['store_desc']);
+
+    $upload_dir = 'uploads/store_profile/';
+    $allowed_file_extensions = array('jpg','jpeg','png');
+    $allowed_MIME_types = array('image/jpeg','image/png');
+
+    $photo = null;
+    if (!empty($_FILES['store_photo']['name'])) {
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+        $image_name = time() . '_' . basename($_FILES['store_photo']['name']);
+        $image_type = $_FILES['store_photo']['type'];
+        $image_error = $_FILES['store_photo']['error'];
+        $image_file_extension = pathinfo($image_name, PATHINFO_EXTENSION);
+
+        // Check for errors
+        if ($image_error !== 0) menuUploadRes('Error uploading photo.');
+
+        // Validate file type
+        if (!in_array($image_file_extension, $allowed_file_extensions) || !in_array($image_type, $allowed_MIME_types)) menuUploadRes('Invalid file type.');
+
+        $new_file_name = uniqid('img_', true) . '.' . $image_file_extension;
+        $photo = $upload_dir . $new_file_name;
+
+        move_uploaded_file($_FILES['store_photo']['tmp_name'], $photo);
+    }
+
+    $sql = "INSERT INTO store_info (store_id,store_name,store_description,store_photo) VALUES (?,?,?,?)";
+    $upload_info = $conn->prepare($sql);
+    $upload_info->bind_param('ssss',$store_id,$store_name,$store_desc,$photo);
+
+    try {
+        if ($upload_info->execute()) {
+            header('Location: store_index.php');
+            exit();
+        }
+    } catch (mysqli_sql_exception $e) {
+        setcookie('info_upl_err', 'Database error: ' . $e->getMessage());
+        header('store_information.php');
+        exit();
+    }
+}
+
+/**
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_registration'])) { // Staff registration
     $name = trim($_POST["name"]);
     $email = trim($_POST["email"]);
@@ -44,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_registration'])
         if ($register_staff->execute()) {
             staffRegistrationResult('Staff registration successful.');
         }
-    } catch(mysqli_sql_exception $e) {
+    } catch (mysqli_sql_exception $e) {
         if ($e->getCode() === 1062) {
             staffRegistrationResult('Error: Email already exists.');
         } else {
@@ -78,63 +257,168 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_login'])) { // 
     header('Location: staffs_dashboard.php');
     exit();
 }
+*/
 
-function getMenu() { // Helper function
+function getMenu($store_id) { // Helper function
     $conn = connect();
 
-    $sql = "SELECT * FROM food_menu";
-    $rs = $conn->query($sql);
+    $sql =
+        "SELECT id, name, description, price, stock, photo
+        FROM food_menu
+        WHERE store_id=?";
+    $get_menu = $conn->prepare($sql);
+    $get_menu->bind_param('s',$store_id);
 
-    if ($rs->num_rows === 0) {
-        $output = json_encode(null);
-    } else { 
-        while ($menu_item = $rs->fetch_assoc()) {
-            $menu[] = $menu_item;
+    try {
+        if ($get_menu->execute()) {
+            $rs = $get_menu->get_result();
+
+            if ($rs->num_rows === 0) {
+                $output = json_encode(null);
+            } else {
+                while ($menu_item = $rs->fetch_assoc()) {
+                    $menu[] = $menu_item;
+                }
+                $output = json_encode($menu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            }
+            file_put_contents('menu.json',$output);
         }
-        $output = json_encode($menu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    } catch (mysqli_sql_exception $e) {
+        setcookie('get_menu_err','Database error: ' . $e->getMessage());
     }
-    file_put_contents('menu.json', $output);
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_menu'])) { // Post menu item (check)
-    $code = $_POST['item_code'];
-    $name = $_POST["name"];
-    $desc = $_POST["description"];
-    $price = $_POST["price"];
-    $stock = $_POST["stock"];
+function menuUploadRes($message) { // Helper function
+    setcookie('menu_upl_res', $message);
+    header('Location: store_index.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_menu'])) { // Post menu item (store)
+    $name = trim($_POST['name']);
+    $desc = trim($_POST['description']);
+    $price = trim($_POST['price']);
+    $stock = trim($_POST['stock']);
+    $store_id = trim($_POST['store_id']);
+
+    $upload_dir = 'uploads/foods/';
+    $allowed_file_extensions = array('jpg','jpeg','png');
+    $allowed_MIME_types = array('image/jpeg','image/png');
 
     // Handle image upload
     $photo = null;
-    if (!empty($_FILES["photo"]["name"])) {
-        $targetDir = "uploads/foods/";
-        if (!is_dir($targetDir))
-            mkdir($targetDir, 0777, true);
+    if (!empty($_FILES['photo']['name'])) {
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
 
-        $fileName = time() . "_" . basename($_FILES["photo"]["name"]);
-        $targetFile = $targetDir . $fileName;
-        $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+        $image_name = time() . '_' . basename($_FILES['photo']['name']);
+        $image_type = $_FILES['photo']['type'];
+        $image_error = $_FILES['photo']['error'];
+        $image_file_extension = pathinfo($image_name, PATHINFO_EXTENSION);
+
+        // Check for errors
+        if ($image_error !== 0) menuUploadRes('Error uploading photo.');
 
         // Validate file type
-        $allowedTypes = ["jpg", "jpeg", "png"];
-        if (in_array($imageFileType, $allowedTypes)) {
-            if (move_uploaded_file($_FILES["photo"]["tmp_name"], $targetFile)) {
-                $photo = $fileName;
-            } else {
-                $message = "Error uploading image.";
-            }
-        } else {
-            $message = "Invalid file type. Only JPG and PNG allowed.";
-        }
+        if (!in_array($image_file_extension, $allowed_file_extensions) || !in_array($image_type, $allowed_MIME_types)) menuUploadRes('Invalid file type.');
+
+        $new_file_name = uniqid('img_', true) . '.' . $image_file_extension;
+        $photo = $upload_dir . $new_file_name;
+
+        move_uploaded_file($_FILES['photo']['tmp_name'], $photo);
     }
 
     // Insert data
-    $stmt = $conn->prepare("INSERT INTO food_menu (code, name, description, price, stock, photo) VALUES (?,?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssdis", $code, $name, $desc, $price, $stock, $photo);
+    $sql =
+        "INSERT INTO food_menu
+        (name,description,price,stock,photo,store_id)
+        VALUES
+        (?,?,?,?,?,?)";
+    $upload_menu = $conn->prepare($sql);
+    $upload_menu->bind_param('ssdiss',$name,$desc,$price,$stock,$photo,$store_id);
     
-    if ($stmt->execute()) {
-        header('Location: food_menu.php');
-    } else {
-        header('Location: food_menu.php');
+    try {
+        if ($upload_menu->execute()) {
+            menuUploadRes('Menu uploaded successfully.');
+        }
+    } catch (mysqli_sql_exception $e) {
+        menuUploadRes('Database error: ' . $e->getMessage());
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_menu_item'])) { // Update menu item
+    $id = trim($_POST['id']);
+    $new_name = trim($_POST['name']);
+    $new_desc = trim($_POST['description']);
+    $new_price = trim($_POST['price']);
+    $updated_stock = trim($_POST['stock']);
+    $current_timestamp = date('Y-m-d H:i:s');
+
+    $upload_dir = 'uploads/foods/';
+    $allowed_file_extensions = array('jpg','jpeg','png');
+    $allowed_MIME_types = array('image/jpeg','image/png');
+
+    $new_photo = null;
+    if (!empty($_FILES['photo']['name'])) {
+        $get_old_photo = $conn->prepare("SELECT photo FROM food_menu WHERE id=?");
+        $get_old_photo->bind_param('s',$id);
+        $get_old_photo->execute();
+        $get_old_photo->bind_result($old_photo);
+        $get_old_photo->fetch();
+        $get_old_photo->close();
+
+        if (!empty($old_photo) && file_exists($old_photo)) {
+            unlink($old_photo);
+        }
+
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+        $image_name = time() . '_' . basename($_FILES['photo']['name']);
+        $image_type = $_FILES['photo']['type'];
+        $image_error = $_FILES['photo']['error'];
+        $image_file_extension = pathinfo($image_name, PATHINFO_EXTENSION);   
+        
+        // Check for errors
+        if ($image_error !== 0) setcookie('update_menu_item_err','Error uploading photo.');
+
+        // Validate file type
+        if (!in_array($image_file_extension, $allowed_file_extensions) || !in_array($image_type, $allowed_MIME_types)) setcookie('update_menu_item_err','Invalid file type.');
+
+        $new_file_name = uniqid('img_', true) . '.' . $image_file_extension;
+        $new_photo = $upload_dir . $new_file_name;
+
+        move_uploaded_file($_FILES['photo']['tmp_name'], $new_photo);   
+    }
+
+    if ($new_photo === null) {
+        $sql =
+            "UPDATE food_menu
+            SET name=?,description=?,price=?,stock=?,last_updated=?
+            WHERE id=?";
+        $update_menu_item = $conn->prepare($sql);
+        $update_menu_item->bind_param('ssdiss',$new_name,$new_desc,$new_price,$updated_stock,$current_timestamp,$id);
+
+        try {
+            if ($update_menu_item->execute()) {
+                getMenu($_SESSION['store_id']);
+            }
+        } catch (mysqli_sql_exception $e) {
+            setcookie('update_menu_item_err',$e->getMessage());
+        }
+    } else if ($new_photo !== null) {
+        $sql =
+            "UPDATE food_menu
+            SET name=?,description=?,price=?,stock=?,last_updated=?,photo=?
+            WHERE id=?";
+        $update_menu_item = $conn->prepare($sql);
+        $update_menu_item->bind_param('ssdisss',$new_name,$new_desc,$new_price,$updated_stock,$current_timestamp,$new_photo,$id);
+
+        try {
+            if ($update_menu_item->execute()) {
+                getMenu($_SESSION['store_id']);
+            }
+        } catch (mysqli_sql_exception $e) {
+            setcookie('update_menu_item_err',$e->getMessage());
+        }
     }
 }
 
@@ -195,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_user_registrati
         if ($register_user->execute()) {
             staffUserRegistrationResult('User registered successfully.');
         }
-    } catch(mysqli_sql_exception $e) {
+    } catch (mysqli_sql_exception $e) {
         if ($e->getCode() === 1062) {
             staffUserRegistrationResult('Error: User already exists.');
         } else {
@@ -239,7 +523,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_import_users'])
             }
 
             staffUserRegistrationResult('Imported ' . $count . ' users.');
-        } catch(mysqli_sql_exception $e) {
+        } catch (mysqli_sql_exception $e) {
             staffUserRegistrationResult($e->getMessage());
         }
     } else {
@@ -249,13 +533,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['staff_import_users'])
 
 // Student functions
 
-function studentLoginErr($message) {
+function studentLoginErr($message) { // Helper function
     setcookie('stud_login_err', $message);
     header('Location: index.php');
     exit();
 }
-
-function studentRegisRes($message) {
+function studentRegisRes($message) { // Helper function
     setcookie('stud_reg_res', $message);
     header('Location: students_register.php');
     exit();
@@ -291,7 +574,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_registration'
         if ($register_account->execute()) {
             studentRegisRes('Account created successfully.');
         }
-    } catch(mysqli_sql_exception $e) {
+    } catch (mysqli_sql_exception $e) {
         if ($e->getCode() === 1062) {
             studentRegisRes('Error: Account already exists.');
         } else {
@@ -300,7 +583,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_registration'
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_login'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_login'])) { // Student/user login
     $student_number = trim($_POST['student_number']);
     $password = trim($_POST['password']);
 
@@ -330,8 +613,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['student_login'])) {
         $_SESSION['student_name'] = $info['name'];
 
         header('Location: students_dashboard.php');
-    } catch(mysqli_sql_exception $e) {
+    } catch (mysqli_sql_exception $e) {
         studentLoginErr('Database error: ' . $e->getMessage());
+    }
+}
+
+function getStoreList() {
+    $conn = connect();
+
+    $sql = "SELECT * FROM store_info";
+    $rs = $conn->query($sql);
+
+    try {
+        if ($rs->num_rows === 0) {
+            $output = json_encode(null);
+        } else {
+            while ($store = $rs->fetch_assoc()) {
+                $stores[] = $store;
+            }
+            $output = json_encode($stores, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }
+
+        file_put_contents('stores.json',$output);
+    } catch (mysqli_sql_exception $e) {
+        setcookie('get_stores_err','Database error: ' . $e->getMessage());
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_cart'])) { // Add an item to cart
+    $customer_id = trim($_POST['customer_id']);
+    $food_id = trim($_POST['food_id']);
+    $food_quantity = trim($_POST['food_quantity']);
+
+    $sql = "INSERT INTO cart (customer_id,food_id,quantity) VALUES (?,?,?)";
+    $add_to_cart = $conn->prepare($sql);
+    $add_to_cart->bind_param('sss',$customer_id,$food_id,$food_quantity);
+
+    try {
+        $add_to_cart->execute();
+    } catch (mysqli_sql_exception $e) {
+        setcookie('add_to_cart_err','Database error: ' . $e->getMessage());
+    }
+}
+
+function getCart($customer_id) {
+    $conn = connect();
+
+    $sql =
+        "SELECT cart.*, food_menu.name, food_menu.description, food_menu.price, food_menu.photo
+        FROM cart
+        LEFT JOIN food_menu
+        ON cart.food_id=food_menu.id
+        WHERE customer_id=?";
+    $get_cart = $conn->prepare($sql);
+    $get_cart->bind_param('s',$customer_id);
+
+    try {
+        if ($get_cart->execute()) {
+            $rs = $get_cart->get_result();
+
+            if ($rs->num_rows === 0) {
+                $output = json_encode(null);
+            } else {
+                while ($cart_item = $rs->fetch_assoc()) {
+                    $cart[] = $cart_item;
+                }
+                $output = json_encode($cart, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            }
+            file_put_contents('cart.json',$output);
+        }
+    } catch (mysqli_sql_exception $e) {
+        setcookie('get_cart_err','Database error: ' . $e->getMessage());
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart_item_quantity'])) { // Update cart item quantity
+    $order_id = trim($_POST['order_id']);
+    $customer_id = trim($_POST['customer_id']);
+    $new_quantity = trim($_POST['quantity']);
+    $current_timestamp = date('Y-m-d H:i:s');
+
+    $sql = "UPDATE cart SET quantity=?, last_updated=? WHERE id=?";
+    $update_quantity = $conn->prepare($sql);
+    $update_quantity->bind_param('sss',$new_quantity,$current_timestamp,$order_id);
+
+    try {
+        if ($update_quantity->execute()) {
+            getCart($customer_id);
+        }
+    } catch (mysqli_sql_exception $e) {
+        setcookie('upd_quan_err','Database error: ' . $e->getMessage());
     }
 }
 
