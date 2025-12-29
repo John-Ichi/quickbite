@@ -28,24 +28,27 @@ const foodNameInp = document.getElementById("foodNameInp");
 const foodQuanInp = document.getElementById("foodQuanInp");
 const foodPriceInp = document.getElementById("foodPriceInp");
 
+const cartIdInp = document.getElementById("cartIdInp");
+
 fetch("store_info.json")
+.then(res => res.json())
+.then(data => {
+    store_info = data;
+
+    fetch("menu.json")
     .then(res => res.json())
     .then(data => {
-        store_info = data;
+        store_menu = data;
 
-        fetch("menu.json")
-            .then(res => res.json())
-            .then(data => {
-                store_menu = data;
+        renderStoreInfo(store_info);
+        renderStoreMenu(store_menu);
+        initializeAddToCartModal();
 
-                renderStoreInfo(store_info);
-                renderStoreMenu(store_menu);
-
-                viewCartBtn.addEventListener("click", () => {
-                    viewCart();
-                });
-            });
+        viewCartBtn.addEventListener("click", () => {
+            viewCart();
+        });
     });
+});
 
 function renderStoreInfo(store) {
     storeInfoDiv.innerHTML = "";
@@ -77,7 +80,7 @@ function renderStoreInfo(store) {
 
 function renderStoreMenu(menu) {
     const tableHeader = document.createElement("tr");
-
+    
     const thName = document.createElement("th");
     thName.textContent = "Name";
 
@@ -86,7 +89,7 @@ function renderStoreMenu(menu) {
 
     const thPrice = document.createElement("th");
     thPrice.textContent = "Price";
-
+    
     const thStock = document.createElement("th");
     thStock.textContent = "Stock";
 
@@ -106,8 +109,6 @@ function renderStoreMenu(menu) {
     storeMenuTable.appendChild(tableHeader);
 
     menu.forEach(menu_item => {
-        const itemRow = document.createElement("tr");
-
         const itemId = menu_item.id;
         const itemName = menu_item.name;
         const itemDesc = menu_item.description;
@@ -115,24 +116,33 @@ function renderStoreMenu(menu) {
         const itemStock = menu_item.stock;
         const itemPhoto = menu_item.photo;
 
+        const itemRow = document.createElement("tr");
+        itemRow.id = itemId;
+
         const tdName = document.createElement("td");
+        tdName.classList.add("menu_name");
         tdName.textContent = itemName;
 
         const tdDesc = document.createElement("td");
+        tdDesc.classList.add("menu_desc");
         if (itemDesc) tdDesc.textContent = itemDesc;
         else tdDesc.textContent = "No description provided.";
 
         const tdPrice = document.createElement("td");
+        tdPrice.classList.add("menu_price");
         tdPrice.textContent = itemPrice;
 
         const tdStock = document.createElement("td");
+        tdStock.classList.add("menu_stock");
         tdStock.textContent = itemStock;
 
         const tdPhoto = document.createElement("td");
+        tdPhoto.classList.add("menu_photo");
         if (itemPhoto) tdPhoto.innerHTML = `<img src="${itemPhoto}" alt="A picture of ${itemName}"></img>`;
         else tdPhoto.textContent = "No photo provided.";
 
         const tdAction = document.createElement("td");
+        tdAction.classList.add("menu_action");
         tdAction.innerHTML = `<button class="addToCart">Add To Cart</button>`;
 
         itemRow.appendChild(tdName);
@@ -143,28 +153,33 @@ function renderStoreMenu(menu) {
         itemRow.appendChild(tdAction);
 
         storeMenuTable.appendChild(itemRow);
+    });
+}
 
-        const addToCartBtns = document.querySelectorAll(".addToCart");
-        addToCartBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                addToCartModal.style.display = "block";
+function initializeAddToCartModal() {
+    const addToCartBtns = document.querySelectorAll(".addToCart");
+    addToCartBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            addToCartModal.style.display = "block";
 
-                // Initialize add to cart form values
-                foodIdInp.value = itemId;
-                foodNameInp.value = itemName;
-                foodPriceInp.value = itemPrice;
-                foodPriceInp.dataset.baseprice = itemPrice;
-                foodQuanInp.value = 1;
+            const parentRow = btn.closest("tr");
+
+            const price = parentRow.querySelector(".menu_price").textContent;
+
+            foodIdInp.value = parentRow.id;
+            foodNameInp.value = parentRow.querySelector(".menu_name").textContent;
+            foodPriceInp.value = price
+            foodPriceInp.dataset.baseprice = price;
+            foodQuanInp.value = 1;
+
+            foodQuanInp.addEventListener("input", () => {
+                const quan = Number(foodQuanInp.value);
+                const price = Number(foodPriceInp.dataset.baseprice);
+                
+                const newPrice = (price*quan).toFixed(2);
+                foodPriceInp.value = newPrice;
             });
         });
-    });
-
-    foodQuanInp.addEventListener("input", () => {
-        const quan = Number(foodQuanInp.value);
-        const price = Number(foodPriceInp.dataset.baseprice);
-
-        const newPrice = (price * quan).toFixed(2);
-        foodPriceInp.value = newPrice;
     });
 }
 
@@ -177,139 +192,187 @@ function addToCart() {
     const formData = new FormData(addToCartForm);
 
     var xhttpAddToCart = new XMLHttpRequest();
-    xhttpAddToCart.onreadystatechange = function () {
+    xhttpAddToCart.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             closeAddToCartModal();
         }
     };
-    xhttpAddToCart.open("POST", "functions.php", true);
+    xhttpAddToCart.open("POST","functions.php",true);
     xhttpAddToCart.send(formData);
 }
 
 function viewCart() {
     fetch("cart.json")
-        .then(res => res.json())
-        .then(data => {
-            cart = data;
-
-            cartDiv.innerHTML = "";
+    .then(res => res.json())
+    .then(data => {
+        if (!data) {
+            cartDiv.innerHTML = "No items in cart yet.";
             cartModal.style.display = "block";
+            return;
+        }
 
-            let overallTotalPrice = 0;
+        cart = data;
 
-            cart.forEach(item => {
-                const cartItem = document.createElement("div");
+        cartDiv.innerHTML = "";
+        cartModal.style.display = "block";
 
-                const cartPhoto = document.createElement("img");
-                cartPhoto.src = item.photo;
-                cartItem.appendChild(cartPhoto);
+        let overallTotalPrice = 0;
+        const checkOutBtn = document.createElement("button");
 
-                const cartHeader = document.createElement("h4");
-                cartHeader.textContent = item.name;
-                cartItem.appendChild(cartHeader);
+        cart.forEach(item => {
+            const cartItem = document.createElement("div");
 
-                const cartContent = document.createElement("p");
-                cartContent.textContent = item.description;
-                cartItem.appendChild(cartContent);
+            const cartPhoto = document.createElement("img");
+            if (item.photo) cartPhoto.src = item.photo;
+            else cartPhoto.alt = `A picture of ${item.name}`;
+            cartItem.appendChild(cartPhoto);
+            
+            const cartHeader = document.createElement("h4");
+            cartHeader.textContent = item.name;
+            cartItem.appendChild(cartHeader);
 
-                let quantityAcc = 0;
+            const cartContent = document.createElement("p");
+            cartContent.textContent = item.description;
+            cartItem.appendChild(cartContent);
 
-                const cartQuan = document.createElement("h5");
-                cartQuan.textContent = item.quantity;
-                quantityAcc += item.quantity;
-                cartItem.appendChild(cartQuan);
+            let quantityAcc = 0;
 
-                const updateQuantityForm = document.createElement("form");
-                updateQuantityForm.action = "functions.php";
-                updateQuantityForm.method = "POST";
+            const cartQuan = document.createElement("h5");
+            cartQuan.textContent = item.quantity;
+            quantityAcc += item.quantity;
+            cartItem.appendChild(cartQuan);
 
-                const customerIdInp = document.createElement("input");
-                customerIdInp.type = "hidden";
-                customerIdInp.name = "customer_id";
-                customerIdInp.value = item.customer_id;
-                updateQuantityForm.appendChild(customerIdInp);
+            const updateQuantityForm = document.createElement("form");
+            updateQuantityForm.action = "functions.php";
+            updateQuantityForm.method = "POST";
 
-                const orderIdInp = document.createElement("input");
-                orderIdInp.type = "hidden";
-                orderIdInp.name = "order_id";
-                orderIdInp.value = item.id;
-                updateQuantityForm.appendChild(orderIdInp);
+            const customerIdInp = document.createElement("input");
+            customerIdInp.type = "hidden";
+            customerIdInp.name = "customer_id";
+            customerIdInp.value = item.customer_id;
+            updateQuantityForm.appendChild(customerIdInp);
 
-                const newQuanInp = document.createElement("input");
-                newQuanInp.type = "hidden";
-                newQuanInp.name = "quantity";
-                updateQuantityForm.appendChild(newQuanInp);
+            const orderIdInp = document.createElement("input");
+            orderIdInp.type = "hidden";
+            orderIdInp.name = "order_id";
+            orderIdInp.value = item.id;
+            updateQuantityForm.appendChild(orderIdInp);
 
-                const reqInp = document.createElement("input");
-                reqInp.type = "hidden";
-                reqInp.name = "update_cart_item_quantity";
-                updateQuantityForm.appendChild(reqInp);
+            const newQuanInp = document.createElement("input");
+            newQuanInp.type = "hidden";
+            newQuanInp.name = "quantity";
+            updateQuantityForm.appendChild(newQuanInp);
 
-                cartItem.appendChild(updateQuantityForm);
+            const reqInp = document.createElement("input");
+            reqInp.type = "hidden";
+            reqInp.name = "update_cart_item_quantity";
+            updateQuantityForm.appendChild(reqInp);
 
-                const reduceQuanBtn = document.createElement("button");
-                reduceQuanBtn.textContent = "-";
-                cartItem.appendChild(reduceQuanBtn);
+            cartItem.appendChild(updateQuantityForm);
 
-                reduceQuanBtn.addEventListener("click", () => {
-                    if (quantityAcc > 1) {
-                        quantityAcc -= 1;
-                        newQuanInp.value = quantityAcc;
-                        cartQuan.textContent = quantityAcc;
-                        updateCartItemQuantity(updateQuantityForm);
-                    }
-                });
+            const reduceQuanBtn = document.createElement("button");
+            reduceQuanBtn.textContent = "-";
+            cartItem.appendChild(reduceQuanBtn);
 
-                const addQuanBtn = document.createElement("button");
-                addQuanBtn.textContent = "+";
-                cartItem.appendChild(addQuanBtn);
-
-                addQuanBtn.addEventListener("click", () => {
-                    quantityAcc += 1;
+            reduceQuanBtn.addEventListener("click", () => {
+                if (quantityAcc > 1) {
+                    quantityAcc -= 1;
                     newQuanInp.value = quantityAcc;
                     cartQuan.textContent = quantityAcc;
                     updateCartItemQuantity(updateQuantityForm);
-                });
-
-                updateQuantityForm.addEventListener("submit", (e) => {
-                    e.preventDefault();
-                    updateCartItemQuantity(updateQuantityForm);
-                });
-
-                // Delete from cart function
-
-                const cartPrice = document.createElement("h5");
-                const itemPrice = Number(item.price);
-                const itemQuan = Number(item.quantity);
-                const totalPrice = itemPrice * itemQuan;
-                cartPrice.textContent = totalPrice.toFixed(2);
-                overallTotalPrice += totalPrice;
-                cartItem.appendChild(cartPrice);
-
-                const checkOutBtn = document.createElement("button"); // Add function
-                checkOutBtn.textContent = overallTotalPrice.toFixed(2);
-                cartItem.appendChild(checkOutBtn);
-
-                cartDiv.appendChild(cartItem);
+                }
             });
 
+            const addQuanBtn = document.createElement("button");
+            addQuanBtn.textContent = "+";
+            cartItem.appendChild(addQuanBtn);
+
+            addQuanBtn.addEventListener("click", () => {
+                quantityAcc += 1;
+                newQuanInp.value = quantityAcc;
+                cartQuan.textContent = quantityAcc;
+                updateCartItemQuantity(updateQuantityForm);
+            });
+
+            updateQuantityForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                updateCartItemQuantity(updateQuantityForm);
+            });
+
+            const deleteItemBtn = document.createElement("button");
+            deleteItemBtn.textContent = "Remove";
+            cartItem.appendChild(deleteItemBtn);
+
+            deleteItemBtn.addEventListener("click", () => {
+                cartIdInp.value = item.id;
+
+                if (confirm("Are you sure you want to remove this item from you cart?")) {
+                    removeCartItem(document.getElementById("deleteForm"));
+                }
+            });
+
+            const cartPrice = document.createElement("h5");
+            const itemPrice = Number(item.price);
+            const itemQuan = Number(item.quantity);
+            const totalPrice = itemPrice * itemQuan;
+            cartPrice.textContent = totalPrice.toFixed(2);
+            overallTotalPrice += totalPrice;
+            cartItem.appendChild(cartPrice);
+
+            checkOutBtn.textContent = `Total: ${overallTotalPrice.toFixed(2)}`;
+
+            cartDiv.appendChild(cartItem);
         });
+        cartDiv.appendChild(checkOutBtn);
+
+        checkOutBtn.addEventListener("click", () => {
+            proceedToCheckout(document.getElementById("checkOut"));
+        });
+    });
 }
 
 function updateCartItemQuantity(updateForm) {
     const formData = new FormData(updateForm);
 
     var xhttpUpdate = new XMLHttpRequest();
-    xhttpUpdate.onreadystatechange = function () {
+    xhttpUpdate.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             viewCart();
         }
     };
-    xhttpUpdate.open("POST", "functions.php", true);
+    xhttpUpdate.open("POST","functions.php",true);
     xhttpUpdate.send(formData);
+}
+
+function removeCartItem(deleteForm) {
+    const formData = new FormData(deleteForm);
+
+    var xhttpDelete = new XMLHttpRequest();
+    xhttpDelete.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            viewCart();
+        }
+    };
+    xhttpDelete.open("POST","functions.php",true);
+    xhttpDelete.send(formData);
 }
 
 function closeCart() {
     cartModal.style.display = "none";
     cartDiv.innerHTML = "";
+}
+
+function proceedToCheckout(checkoutForm) {
+    if (confirm("Proceed to checkout?")) {
+        const formData = new FormData(checkoutForm);
+
+        var xhttpCheckOut = new XMLHttpRequest();
+        xhttpCheckOut.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                window.location.href = "students_checkout.php";
+            }
+        };
+        xhttpCheckOut.open("POST","functions.php",true);
+        xhttpCheckOut.send(formData);
+    }
 }

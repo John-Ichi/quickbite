@@ -20,18 +20,22 @@ const descInp = document.getElementById("editDescInp");
 const priceInp = document.getElementById("editPriceInp");
 const stockInp = document.getElementById("editStockInp");
 
+const menuIdInp = document.getElementById("menuIdInp");
+
 fetch("menu.json")
-    .then(res => res.json())
-    .then(data => {
-        renderFoodMenu(data);
-        updateMenuTable(data);
-    });
+.then(res => res.json())
+.then(data => {
+    renderFoodMenu(data);
+    initializeEditMenuForm();
+    updateMenuTable(data);
+    deleteMenuItem();
+});
 
 function renderFoodMenu(menu) {
     menuTable.innerHTML = "";
 
     const tbHeader = document.createElement("tr");
-
+    
     const thName = document.createElement("th");
     thName.textContent = "Name";
 
@@ -43,7 +47,7 @@ function renderFoodMenu(menu) {
 
     const thStock = document.createElement("th");
     thStock.textContent = "Stock";
-
+    
     const thPhoto = document.createElement("th");
     thPhoto.textContent = "Photo";
 
@@ -68,23 +72,28 @@ function renderFoodMenu(menu) {
         const itemPhoto = item.photo;
 
         const tr = document.createElement("tr");
+        tr.id = itemId;
 
         const tdName = document.createElement("td");
+        tdName.classList.add("menu_name");
         tdName.textContent = itemName;
 
         const tdDesc = document.createElement("td");
+        tdDesc.classList.add("menu_desc");
         if (itemDesc !== "") {
             tdDesc.textContent = itemDesc;
         } else {
             tdDesc.textContent = "No description provided.";
         }
-
+        
         const tdPrice = document.createElement("td");
+        tdPrice.classList.add("menu_price");
         tdPrice.textContent = itemPrice;
-
+        
         const tdStock = document.createElement("td");
+        tdStock.classList.add("menu_stock");
         tdStock.textContent = itemStock;
-
+        
         const tdPhoto = document.createElement("td");
         if (itemPhoto !== null) {
             tdPhoto.innerHTML = `<img src="${itemPhoto}">`;
@@ -93,7 +102,7 @@ function renderFoodMenu(menu) {
         }
 
         const tdAction = document.createElement("td");
-        tdAction.innerHTML = `<button class="editMenu">Edit Menu Item</button>`;
+        tdAction.innerHTML = `<button class="editMenu">Edit</button><button class="deleteMenu">Delete</button>`;
 
         tr.appendChild(tdName);
         tr.appendChild(tdDesc);
@@ -103,18 +112,22 @@ function renderFoodMenu(menu) {
         tr.appendChild(tdAction);
 
         menuTable.appendChild(tr);
+    });
+}
 
-        const editBtns = document.querySelectorAll(".editMenu");
-        editBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                editMenuItemModal.style.display = "block";
+function initializeEditMenuForm() {
+    const editBtns = document.querySelectorAll(".editMenu");
+    editBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            editMenuItemModal.style.display = "block";
 
-                idInp.value = itemId;
-                nameInp.value = itemName;
-                descInp.value = itemDesc;
-                priceInp.value = itemPrice;
-                stockInp.value = itemStock;
-            });
+            const parentRow = btn.closest("tr");
+
+            idInp.value = parentRow.id;
+            nameInp.value = parentRow.querySelector(".menu_name").textContent;
+            descInp.value = parentRow.querySelector(".menu_desc").textContent;
+            priceInp.value = parentRow.querySelector(".menu_price").textContent;
+            stockInp.value = parentRow.querySelector(".menu_stock").textContent;
         });
     });
 }
@@ -126,20 +139,53 @@ function updateMenuTable() {
         const formData = new FormData(editMenuItemModalForm);
 
         var xhttpUpdate = new XMLHttpRequest();
-        xhttpUpdate.onreadystatechange = function () {
+        xhttpUpdate.onreadystatechange = function() {
             if (this.readyState == 4 && this.status == 200) {
                 fetch("menu.json")
-                    .then(res => res.json())
-                    .then(data => {
-                        renderFoodMenu(data);
-                        updateMenuTable(data);
-                        closeEditMenu();
-                    });
+                .then(res => res.json())
+                .then(data => {
+                    renderFoodMenu(data);
+                    initializeEditMenuForm();
+                    updateMenuTable(data);
+                    closeEditMenu();
+                });
             }
         };
-        xhttpUpdate.open("POST", "functions.php", true);
+        xhttpUpdate.open("POST","functions.php",true);
         xhttpUpdate.send(formData);
     });
+}
+
+function deleteMenuItem() {
+    const deleteBtns = document.querySelectorAll(".deleteMenu");
+    deleteBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const parentRow = btn.closest("tr");
+            const menuId = parentRow.id;
+
+            menuIdInp.value = menuId;
+
+            if (confirm("Are you sure you want to delete this menu item?")) {
+                const formData = new FormData(document.getElementById("deleteMenu"));
+
+                var xhttpDelete = new XMLHttpRequest();
+                xhttpDelete.onreadystatechange = function() {
+                    if (this.readyState == 4 && this.status == 200) {
+                        fetch("menu.json")
+                        .then(res => res.json())
+                        .then(data => {
+                            renderFoodMenu(data);
+                            initializeEditMenuForm();
+                            updateMenuTable(data);
+                            deleteMenuItem();
+                        });
+                    }
+                };
+                xhttpDelete.open("POST","functions.php",true);
+                xhttpDelete.send(formData);
+            }
+        });
+    })
 }
 
 function closeEditMenu() {
@@ -149,11 +195,11 @@ function closeEditMenu() {
 
 function logOut() {
     var xhttpLogout = new XMLHttpRequest();
-    xhttpLogout.onreadystatechange = function () {
+    xhttpLogout.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             window.location.href = "store_login.php";
         }
     };
-    xhttpLogout.open("GET", "store_logout.php", true);
+    xhttpLogout.open("GET","store_logout.php",true);
     xhttpLogout.send();
 }

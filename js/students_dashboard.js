@@ -1,10 +1,24 @@
 const storesDiv = document.getElementById("storesDiv");
 
+const viewCartBtn = document.getElementById("viewCart");
+
+const cartModal = document.getElementById("cartModal");
+const cartDiv = document.getElementById("cartDiv");
+
+const cartModalCloseBtn = cartModal.querySelector(".close");
+cartModalCloseBtn.addEventListener("click", () => {
+    closeCart();
+});
+
 fetch("stores.json")
-    .then(res => res.json())
-    .then(data => {
-        renderStores(data);
+.then(res => res.json())
+.then(data => {
+    renderStores(data);
+
+    viewCartBtn.addEventListener("click", () => {
+        viewCart();
     });
+});
 
 function renderStores(stores) {
     stores.forEach(store => {
@@ -32,6 +46,181 @@ function renderStores(stores) {
     });
 }
 
+function viewCart() {
+    fetch("cart.json")
+    .then(res => res.json())
+    .then(data => {
+        if (!data) {
+            cartDiv.innerHTML = "No items in cart yet.";
+            cartModal.style.display = "block";
+            return;
+        }
+
+        cart = data;
+
+        cartDiv.innerHTML = "";
+        cartModal.style.display = "block";
+
+        let overallTotalPrice = 0;
+        const checkOutBtn = document.createElement("button");
+
+        cart.forEach(item => {
+            const cartItem = document.createElement("div");
+
+            const cartPhoto = document.createElement("img");
+            if (item.photo) cartPhoto.src = item.photo;
+            else cartPhoto.alt = `A picture of ${item.name}`;
+            cartItem.appendChild(cartPhoto);
+            
+            const cartHeader = document.createElement("h4");
+            cartHeader.textContent = item.name;
+            cartItem.appendChild(cartHeader);
+
+            const cartContent = document.createElement("p");
+            cartContent.textContent = item.description;
+            cartItem.appendChild(cartContent);
+
+            let quantityAcc = 0;
+
+            const cartQuan = document.createElement("h5");
+            cartQuan.textContent = item.quantity;
+            quantityAcc += item.quantity;
+            cartItem.appendChild(cartQuan);
+
+            const updateQuantityForm = document.createElement("form");
+            updateQuantityForm.action = "functions.php";
+            updateQuantityForm.method = "POST";
+
+            const customerIdInp = document.createElement("input");
+            customerIdInp.type = "hidden";
+            customerIdInp.name = "customer_id";
+            customerIdInp.value = item.customer_id;
+            updateQuantityForm.appendChild(customerIdInp);
+
+            const orderIdInp = document.createElement("input");
+            orderIdInp.type = "hidden";
+            orderIdInp.name = "order_id";
+            orderIdInp.value = item.id;
+            updateQuantityForm.appendChild(orderIdInp);
+
+            const newQuanInp = document.createElement("input");
+            newQuanInp.type = "hidden";
+            newQuanInp.name = "quantity";
+            updateQuantityForm.appendChild(newQuanInp);
+
+            const reqInp = document.createElement("input");
+            reqInp.type = "hidden";
+            reqInp.name = "update_cart_item_quantity";
+            updateQuantityForm.appendChild(reqInp);
+
+            cartItem.appendChild(updateQuantityForm);
+
+            const reduceQuanBtn = document.createElement("button");
+            reduceQuanBtn.textContent = "-";
+            cartItem.appendChild(reduceQuanBtn);
+
+            reduceQuanBtn.addEventListener("click", () => {
+                if (quantityAcc > 1) {
+                    quantityAcc -= 1;
+                    newQuanInp.value = quantityAcc;
+                    cartQuan.textContent = quantityAcc;
+                    updateCartItemQuantity(updateQuantityForm);
+                }
+            });
+
+            const addQuanBtn = document.createElement("button");
+            addQuanBtn.textContent = "+";
+            cartItem.appendChild(addQuanBtn);
+
+            addQuanBtn.addEventListener("click", () => {
+                quantityAcc += 1;
+                newQuanInp.value = quantityAcc;
+                cartQuan.textContent = quantityAcc;
+                updateCartItemQuantity(updateQuantityForm);
+            });
+
+            updateQuantityForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                updateCartItemQuantity(updateQuantityForm);
+            });
+
+            const deleteItemBtn = document.createElement("button");
+            deleteItemBtn.textContent = "Remove";
+            cartItem.appendChild(deleteItemBtn);
+
+            deleteItemBtn.addEventListener("click", () => {
+                cartIdInp.value = item.id;
+
+                if (confirm("Are you sure you want to remove this item from you cart?")) {
+                    removeCartItem(document.getElementById("deleteForm"));
+                }
+            });
+
+            const cartPrice = document.createElement("h5");
+            const itemPrice = Number(item.price);
+            const itemQuan = Number(item.quantity);
+            const totalPrice = itemPrice * itemQuan;
+            cartPrice.textContent = totalPrice.toFixed(2);
+            overallTotalPrice += totalPrice;
+            cartItem.appendChild(cartPrice);
+
+            checkOutBtn.textContent = `Total: ${overallTotalPrice.toFixed(2)}`;
+
+            cartDiv.appendChild(cartItem);
+        });
+        cartDiv.appendChild(checkOutBtn);
+
+        checkOutBtn.addEventListener("click", () => {
+            proceedToCheckout(document.getElementById("checkOut"));
+        });
+    })
+}
+
+function updateCartItemQuantity(updateForm) {
+    const formData = new FormData(updateForm);
+
+    var xhttpUpdate = new XMLHttpRequest();
+    xhttpUpdate.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            viewCart();
+        }
+    };
+    xhttpUpdate.open("POST","functions.php",true);
+    xhttpUpdate.send(formData);
+}
+
+function removeCartItem(deleteForm) {
+    const formData = new FormData(deleteForm);
+
+    var xhttpDelete = new XMLHttpRequest();
+    xhttpDelete.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            viewCart();
+        }
+    };
+    xhttpDelete.open("POST","functions.php",true);
+    xhttpDelete.send(formData);
+}
+
+function closeCart() {
+    cartModal.style.display = "none";
+    cartDiv.innerHTML = "";
+}
+
+function proceedToCheckout(checkoutForm) {
+    if (confirm("Proceed to checkout?")) {
+        const formData = new FormData(checkoutForm);
+
+        var xhttpCheckOut = new XMLHttpRequest();
+        xhttpCheckOut.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                window.location.href = "students_checkout.php";
+            }
+        };
+        xhttpCheckOut.open("POST","functions.php",true);
+        xhttpCheckOut.send(formData);
+    }
+}
 /**
 const menuTable = document.getElementById("menuTable");
 
