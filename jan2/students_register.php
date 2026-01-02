@@ -27,8 +27,8 @@
             ?>
         </p>
         <form action="functions.php" method="POST" autocomplete="off">
-            <input type="text" name="student_number" placeholder="Student number" required>
-            <input type="text" name="contact_number" placeholder="Contact Number" required>
+            <input id="studentNumberInp" type="text" name="student_number" placeholder="Student number" required inputmode="numeric" pattern="\d{9}" maxlength="9" minlength="9">
+            <input id="contactNumberInp" type="text" name="contact_number" placeholder="Contact Number" required inputmode="numeric" pattern="\d{11}" maxlength="11" minlength="11">
             <input type="password" name="password" placeholder="Password" required>
             <input type="password" name="confirm_password" placeholder="Confirm password" required>
             <input type="hidden" name="student_registration">
@@ -38,10 +38,6 @@
     </div>
 </body>
 
-<script>
-    window.addEventListener("load", () => {
-        document.cookie = "stud_reg_res=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
-    });
-</script>
+<script src="js/students_register.js"></script>
 
 </html>
