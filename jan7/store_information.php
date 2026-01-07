@@ -1,0 +1,48 @@
+<?php
+include 'functions.php';
+
+if (!isset($_SESSION['store_id'])) header('Location: store_login.php');
+
+getStoreInfo();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickBite</title>
+</head>
+<body>
+    <input type="hidden" id="storeId" value="<?php echo $_SESSION['store_id']; ?>">
+
+    <?php if (isset($_COOKIE['menu_upl_res'])) echo $_COOKIE['menu_upl_res']; ?>
+
+    <form action="functions.php" method="POST" enctype="multipart/form-data" autocomplete="off">
+        <input type="hidden" name="store_id" value="<?php echo $_SESSION['store_id']; ?>">
+        <input type="text" name="store_name" value="<?php echo $_SESSION['store_name']; ?>" readonly>
+        <textarea name="store_desc" placeholder="Provide a short description for your store..." required></textarea>
+        <input type="file" name="store_photo" accept="image/*">
+        <input type="hidden" name="store_info_inp">
+        <button type="submit">Submit</button>
+    </form>
+</body>
+
+<script>
+const storeId = document.getElementById("storeId").value;
+
+checkStoreInfo();
+
+function checkStoreInfo() {
+    fetch("store_info.json")
+    .then(res => res.json())
+    .then(data => {
+        if (!data) return;
+
+        const storeData = data.filter(store => store.store_id.toString() === storeId);
+
+        if (storeData.length !== 0) window.location.href = "store_index.php";
+    });
+}
+</script>
+
+</html>
